@@ -227,7 +227,8 @@ pub enum const_val {
     const_int(i64),
     const_uint(u64),
     const_str(~str),
-    const_bool(bool)
+    const_bool(bool),
+    const_tup(~str)
 }
 
 pub fn eval_const_expr(tcx: middle::ty::ctxt, e: @expr) -> const_val {
@@ -390,6 +391,43 @@ pub fn eval_const_expr_partial(tcx: middle::ty::ctxt, e: @expr)
               None => Err(~"Non-constant path in constant expr")
           }
       }
+      expr_struct(*) => Err(~"Test Struct"),
+      expr_vec(*) => Err(~"Text vec"),
+      expr_tup(ref elts) => {
+        let mut data : ~[char] = ~[];
+        let mut suc = true;
+        for elts.each |elt| {
+          let el = eval_const_expr_partial(tcx, *elt);
+          match el {
+            Ok(const_uint(u)) => {
+              data.push((u & 0xffff) as char);
+              data.push(((u >> 16) & 0xffff) as char); 
+              data.push(((u >> 32) & 0xffff) as char); 
+              data.push(((u >> 48) & 0xffff) as char); 
+            }
+            Ok(const_int(i)) => {
+              let u = i as u64;
+              data.push((u & 0xffff) as char);
+              data.push(((u >> 16) & 0xffff) as char); 
+              data.push(((u >> 32) & 0xffff) as char); 
+              data.push(((u >> 48) & 0xffff) as char); 
+            }
+            Ok(const_str(s)) => {
+              data.push_all(str::chars(s))  
+            }
+            _ => {
+              suc = false;
+              break;
+            }
+          }
+        }
+        
+        if (suc) {
+            Ok(const_tup(str::from_chars(data)))
+        } else {
+            Err(~"Can't cast this type")
+        }
+      } 
       expr_lit(lit) => Ok(lit_to_const(lit)),
       // If we have a vstore, just keep going; it has to be a string
       expr_vstore(e, _) => eval_const_expr_partial(tcx, e),
@@ -454,6 +492,15 @@ pub fn compare_const_vals(a: const_val, b: const_val) -> int {
         if a == b {
             0
         } else if a < b {
+            -1
+        } else {
+            1
+        }
+    }
+    (&const_tup(ref a), &const_tup(ref b)) => {
+        if (*a) == (*b) {
+            0
+        } else if (*a) < (*b) {
             -1
         } else {
             1

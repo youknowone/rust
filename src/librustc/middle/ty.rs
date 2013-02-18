@@ -4275,6 +4275,12 @@ pub fn eval_repeat_count(tcx: ctxt,
                                 repeat count but found boolean");
             return 0;
         }
+        const_eval::const_tup(_) => {
+            tcx.sess.span_err(span,
+                              ~"expected signed or unsigned integer for \
+                                repeat count but found tuple");
+            return 0;
+        }
 
     }
 }
